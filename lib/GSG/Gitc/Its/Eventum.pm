@@ -1,0 +1,298 @@
+package GSG::Gitc::Its::Eventum;
+
+=head1 NAME
+
+GSG::Gitc::Its::Eventum;
+
+=head1 Synopsis
+
+Support for Eventum ITS (Issue Tracking System)
+
+=head1 Description
+
+=head1 Methods
+
+=cut
+
+use POSIX qw( strftime );
+
+use GSG::Gitc::Util qw(
+    project_config
+    command_name
+    current_branch
+);
+
+use List::MoreUtils qw( any );
+
+sub label_service { return 'Eventum'; }
+sub label_issue { return 'Eventum'; }
+
+
+=head2 get_issue 
+
+Returns a L<GSG::Eventum::Issue> object representing this changeset's Eventum
+issue.  If this changeset has no Eventum issue or there was an error locating
+it, returns C<undef>.  Normally this will cache the object, and return it
+on subsequent calls.  If the C<reload> parameter is set, it will reload the
+object and reset the cache.
+
+=cut
+
+sub get_issue {
+    my $self = shift;
+    my $changeset = shift;
+    my %params = @_;
+    my $number = $self->issue_number($changeset) or return undef;
+    our %eventum_issue;
+    return $eventum_issue{$number}
+        if exists $eventum_issue{$number} and not $params{reload};
+
+    # to find an Eventum issue, we need a number and URI
+    my $uri    = project_config()->{'eventum_uri'} or return;
+
+    # build and return the Issue object
+    our %eventum;
+    my $eventum = $eventum{$uri};
+    if ( not $eventum ) {
+        require GSG::Eventum;
+        # TODO GSG::Eventum has not been publicly released
+        $eventum{$uri} = $eventum = GSG::Eventum->new({
+            uri      => $uri,
+        });
+    }
+
+    # GSG::Eventum::Issue is lazy, force an action to verify the issue
+    my $issue = $eventum->issue($number);
+    $issue = undef if not eval { $issue->summary };
+    return $eventum_issue{$number} = $issue;
+}
+
+=head2 transition_state
+
+Change an Eventum issue's status from one value to another.  The following
+named arguments are understood:
+
+ message   - required message to put in Eventum's Internal Comments
+ issue     - optional GSG::Eventum::Issue object
+             (defaults to an Issue for the currently checked out changeset)
+ command   - optional name of the command that's changing the status
+             (by default, it's inferred from the top-level script)
+ with_time - optional boolean defaults to true.
+             should a time stamp be added to the message?
+ target    - optional name of a promotion target (when $command is 'promote')
+
+The old and new Eventum statuses are specified through the project
+configuration file.  They are keyed on the value of the C<command> argument.
+
+=cut
+
+sub transition_state {
+    my $self = shift;
+    my ($args) = @_;
+    $args ||= {};
+    $args->{with_time} = 1 unless exists $args->{with_time};
+    return "Skipping Eventum changes, as requested by GITC_NO_EVENTUM\n"
+        if $ENV{GITC_NO_EVENTUM};
+    return "Skipping Eventum changes as configured for this project\n"
+        if not project_config()->{'eventum_uri'};
+
+    # validate the arguments
+    my $command = $args->{command} || command_name();
+    my ($from, $to) = $self->_states( $command, $args->{target} );
+    my $message = $args->{message} or die "No eventum message";
+    my $issue = exists $args->{issue} ? $args->{issue} :
+                                        $self->get_issue(current_branch(), reload => 1);
+    return "NOT CHANGING Eventum status: changeset not in Eventum?\n"
+        if not $issue;
+
+    # update the Eventum issue
+    my $time_format = '%m/%d/%Y';
+    $time_format .= ' %I:%M %p' if $args->{with_time};
+    $message = (getpwuid $>)[6]   # user's name
+                . strftime( " $time_format: $message\n", localtime );
+    my ( $rc, $status_exception );
+    eval {
+        return $rc = $issue->close($message) if $to and $to eq 'CLOSE';
+        $issue->postpone_updates;
+        $issue->append_internal_comments($message);
+        $rc = eval { $issue->transition_status($from, $to) } if $to;
+        $status_exception = $@ if $@;
+        $issue->update;
+        $issue->live_updates;
+    };
+    die $@ if $@;  # rethrow unexpected exceptions
+    if ( $status_exception ) {
+        die $status_exception
+            if $status_exception !~ m/('[^']+' is not a valid status name)/;
+        return "NOT CHANGING Eventum status: $1\n";
+    }
+    elsif ($rc) {  # success
+        return "Changed Eventum status to '$to'\n";
+    }
+    else {
+        return sprintf "NOT CHANGING Eventum status: currently '%s'\n",
+            $issue->status;
+    }
+}
+
+=head2 _states
+
+Used internally by class to calculate target for state change
+
+=cut 
+sub _states {
+    my $self = shift;
+    my ($command, $target) = @_;
+    my $statuses = project_config()->{'eventum_statuses'}{$command}
+        or die "No Eventum statuses for $command";
+
+    # handle the common case
+    if ( not $target ) {
+        my $from = $statuses->{from} or die "No initial status";
+        my $to   = $statuses->{to}   or die "No final status";
+        return ( $from, $to );
+    }
+
+    # promotions need another level of dereference
+    my $from = $statuses->{$target}{from}
+        or die "No initial status for target $target";
+    my $to = $statuses->{$target}{to}
+        or die "No final status for target $target";
+    return ( $from, $to );
+}
+
+=head2 state_blocked
+
+Given a C<command> and a specified C<state> this checks the block list in the
+project configuration and returns true if the state should block the command
+from proceeding.
+
+NOTE: Block list must be an arraref in the project configuration 
+
+=cut
+sub state_blocked {
+    my $self = shift;
+    my ($command, $state) = @_;
+    my $statuses = project_config()->{'eventum_statuses'}{$command}
+        or die "No Eventum statuses for $command";
+
+    # promotions need another level of dereference
+    my $block = $statuses->{block};
+    return unless $block;
+
+    return 1 if any { $_ eq $state } @{$block};
+    
+    return;
+}
+
+=head2 issue_*
+
+These return the correct field based on being passed in an eventum issue object.
+Think of it as $issue->*  - Should be replaced with a facade for issues
+
+=cut
+
+=head2 issue_state
+
+Returns the current issue 'state' (usually status), this may or may not match the config from/target states
+
+=cut
+sub issue_state {
+    my $self = shift;
+    my $issue = shift;
+    
+    return unless $issue;
+
+    return $issue->status;
+}
+
+sub issue_id {
+    my $self = shift;
+    my $issue = shift;
+
+    return $issue->number;
+}
+
+sub issue_changeset_uri {
+    my $self = shift;
+    my $issue = shift;
+    return unless $issue;
+
+    my $uri = eval {
+        sprintf('%s/view.php?id=%d', $issue->eventum->uri, $issue->number);
+    } || '';
+    return $uri;
+}
+
+sub issue_summary {
+    my $self = shift;
+    my $issue = shift;
+    return unless $issue;
+
+    return $issue->summary;
+}
+
+sub issue_promotion_notes {
+    my $self = shift;
+    my $issue = shift;
+    return unless $issue;
+
+    return $issue->promotion_notes;
+}
+
+sub issue_project {
+    my $self = shift;
+    my $issue = shift;
+    return unless $issue;
+
+    return $issue->project;
+}
+
+sub issue_scheduled_release {
+    my $self = shift;
+    my $issue = shift;
+    return unless $issue;
+
+    return $issue->scheduled_release;
+}
+
+=head2 issue_number
+
+Returns the Eventum issue number for a given changeset name OR given an eventum issue object
+
+=cut
+
+sub issue_number {
+    my $self = shift;
+    my ($changeset_or_issue) = @_;
+
+    return $changeset_or_issue->number if ref $changeset_or_issue;
+    
+    return $1 if $changeset_or_issue =~ m/\A e (\d+) \w? \z/xms;
+    return;
+}
+
+=head1 AUTHOR
+
+Grant Street Group <F<developers@grantstreet.com>>
+
+=head1 COPYRIGHT AND LICENSE
+
+    Copyright 2012 Grant Street Group, All Rights Reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
+
+1;
