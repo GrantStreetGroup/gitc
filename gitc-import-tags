@@ -19,7 +19,7 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use File::Temp qw( tempfile );
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     archived_tags
     git_dir
     open_packed_refs

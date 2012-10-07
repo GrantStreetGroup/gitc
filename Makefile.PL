@@ -1,7 +1,7 @@
 use inc::Module::Install;
 
-name 'GSG-Gitc';
-all_from 'lib/GSG/Gitc.pm';
+name 'App-Gitc';
+all_from 'lib/App/Gitc.pm';
 
 # modules present in the core Perl installation
 requires 'Carp';

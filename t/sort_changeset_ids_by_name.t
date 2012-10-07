@@ -19,7 +19,7 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use Test::More;
-use GSG::Gitc::Util qw( sort_changesets_by_name );
+use App::Gitc::Util qw( sort_changesets_by_name );
 
 my @tests = (
     [

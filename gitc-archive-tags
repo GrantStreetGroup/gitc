@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     git
     git_config
     git_dir
@@ -40,7 +40,7 @@ exit if not $tags_fh;  # refs to process
 
 # normally we don't access dbh directly, but we need a transaction,
 # so we need the database handle itself.
-my $dbh = GSG::Gitc::Util::dbh();
+my $dbh = App::Gitc::Util::dbh();
 $dbh->begin_work;
 
 # which changesets are old?

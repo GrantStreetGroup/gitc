@@ -1,8 +1,8 @@
-package GSG::Gitc::Its::Jira;
+package App::Gitc::Its::Jira;
 
 =head1 NAME
 
-GSG::Gitc::Its::Jira;
+App::Gitc::Its::Jira;
 
 =head1 Synopsis
 
@@ -27,7 +27,7 @@ use Try::Tiny;
 use List::MoreUtils qw( any );
 use YAML;
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     project_config
     command_name
     current_branch

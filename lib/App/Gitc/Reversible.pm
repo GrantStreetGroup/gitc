@@ -1,4 +1,4 @@
-package GSG::Reversible;
+package App::Gitc::Reversible;
 use strict;
 use warnings;
 use base 'Exporter';
@@ -13,11 +13,11 @@ BEGIN {
 
 =head1 NAME
 
-GSG::Reversible - simple reversible computation
+App::Gitc::Reversible - simple reversible computation
 
 =head1 Synopsis
 
-    use GSG::Reversible;
+    use App::Gitc::Reversible;
     reversibly {
         # do something with a side effect
         open my $fh, '>', '/tmp/file' or die;

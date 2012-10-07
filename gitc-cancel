@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     changeset_merged_to
     confirm
     current_branch
@@ -27,7 +27,7 @@ use GSG::Gitc::Util qw(
     meta_data_rm_all
     remote_branch_exists
 );
-use GSG::Reversible;
+use App::Gitc::Reversible;
 use Getopt::Long;
 
 our $changeset = current_branch();

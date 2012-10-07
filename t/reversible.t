@@ -17,7 +17,7 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use Test::More tests => 18;
-use GSG::Reversible;
+use App::Gitc::Reversible;
 
 # set up what we'll need for the tests
 my @english;

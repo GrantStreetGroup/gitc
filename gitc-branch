@@ -20,7 +20,7 @@ use strict;
 
 # Hide warnings from ITS/Jira
 
-use GSG::Gitc::Util qw( its_for_changeset );
+use App::Gitc::Util qw( its_for_changeset );
 BEGIN {
     $SIG{'__WARN__'} = sub { }
 }

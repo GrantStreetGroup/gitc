@@ -1,4 +1,4 @@
-package GSG::Gitc::Test;
+package App::Gitc::Test;
 use strict;
 use warnings;
 
@@ -18,7 +18,7 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use Test::More '';
-use GSG::Gitc::Util qw( branch_point unpromoted );
+use App::Gitc::Util qw( branch_point unpromoted );
 use Exporter 'import';
 
 BEGIN {

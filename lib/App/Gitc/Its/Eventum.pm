@@ -1,8 +1,8 @@
-package GSG::Gitc::Its::Eventum;
+package App::Gitc::Its::Eventum;
 
 =head1 NAME
 
-GSG::Gitc::Its::Eventum;
+App::Gitc::Its::Eventum;
 
 =head1 Synopsis
 
@@ -16,7 +16,7 @@ Support for Eventum ITS (Issue Tracking System)
 
 use POSIX qw( strftime );
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     project_config
     command_name
     current_branch
