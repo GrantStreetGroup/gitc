@@ -42,13 +42,13 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Scripts.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
-lib/GSG/Gitc.pm
-lib/GSG/Gitc/Config.pm
-lib/GSG/Gitc/Its/Eventum.pm
-lib/GSG/Gitc/Its/Jira.pm
-lib/GSG/Gitc/Test.pm
-lib/GSG/Gitc/Util.pm
-lib/GSG/Reversible.pm
+lib/App/Gitc.pm
+lib/App/Gitc/Config.pm
+lib/App/Gitc/Its/Eventum.pm
+lib/App/Gitc/Its/Jira.pm
+lib/App/Gitc/Reversible.pm
+lib/App/Gitc/Test.pm
+lib/App/Gitc/Util.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files

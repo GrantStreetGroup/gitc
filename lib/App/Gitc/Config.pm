@@ -1,4 +1,4 @@
-package GSG::Gitc::Config;
+package App::Gitc::Config;
 use strict;
 use warnings;
 

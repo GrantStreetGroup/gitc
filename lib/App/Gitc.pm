@@ -1,12 +1,12 @@
 use strict;
 use warnings;
-package GSG::Gitc;
+package App::Gitc;
 
 our $VERSION = '0.57';
 
 =head1 See
 
-L<GSG::Gitc::Util>
+L<App::Gitc::Util>
 
 =head1 AUTHOR
 

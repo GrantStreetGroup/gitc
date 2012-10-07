@@ -18,8 +18,8 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw( git );
-use GSG::Gitc::Config;
+use App::Gitc::Util qw( git );
+use App::Gitc::Config;
 
 my $project = shift;
 my $alias   = shift || '';
