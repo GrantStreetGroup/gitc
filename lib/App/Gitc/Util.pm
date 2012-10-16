@@ -750,20 +750,20 @@ sub current_branch_version_details {
         full_version    => '1.0',
     } unless @versions;
 
-    # git tag -l lists tags in alphabetical order.  Versions will be 
-    # formatted like x.xx (no limit on the number of digits in the decimal
-    # portion of the version #), so we'll always have the most
-    # recent major version as the last tag...
+    # Get rid of tag prefixes so we have numbers to work with...
+    @versions = map { s/$tag_prefix//; $_ } @versions;
+    @versions = sort { $a <=> $b } @versions;
+
     my $major_version = $versions[-1];
-    # Remove the tag prefix...
-    $major_version =~ s/$tag_prefix//;
-    # ...and the minor version number at the end
+    # remove the minor version number at the end
     $major_version =~ s/\.\d+$//;
 
     # Get all tags for the current major version...
-    @versions = grep { /$tag_prefix$major_version/ } @versions;
-    # ...then remove the tag prefix / major version and sort by minor version
-    @versions = sort map { $_ =~ s/^$tag_prefix\d+\.//; $_ } @versions;
+    @versions = grep { /^$major_version\./ } @versions;
+    # ...then remove the tag major version and sort by minor version
+    @versions = map { s/^$major_version\.//; $_ } @versions;
+    # ...then sort numerically
+    @versions = sort { $a <=> $b } @versions;
     # ...so our latest minor version is the last in the list
     my $minor_version = pop @versions;
 
