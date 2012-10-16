@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw( project_name unmerged_changesets );
+use App::Gitc::Util qw( project_name unmerged_changesets );
 use Getopt::Long;
 
 my $format = 'basic';
@@ -39,7 +39,7 @@ die "You must specify a project on the command line or with you pwd\n"
 my $unmerged = unmerged_changesets($project_name);
 
 # display the results
-my $class = 'GSG::Gitc::ListFormat::' . ucfirst( lc $format );
+my $class = 'App::Gitc::ListFormat::' . ucfirst( lc $format );
 my $formatter = $class->new;
 $formatter->print_header;
 for my $changeset ( sort keys %$unmerged ) {
@@ -51,7 +51,7 @@ $formatter->print_footer;
 #######################################################################
 # various list format implementations
 
-package GSG::Gitc::ListFormat::Base;
+package App::Gitc::ListFormat::Base;
 use strict;
 use warnings;
 sub new {
@@ -61,11 +61,11 @@ sub print_header {}
 sub print_row {}
 sub print_footer {}
 
-package GSG::Gitc::ListFormat::Basic;
+package App::Gitc::ListFormat::Basic;
 use strict;
 use warnings;
-use base qw( GSG::Gitc::ListFormat::Base );
-use GSG::Gitc::Util qw( history_owner history_reviewer history_status );
+use base qw( App::Gitc::ListFormat::Base );
+use App::Gitc::Util qw( history_owner history_reviewer history_status );
 
 sub print_header {
     print "owner    id              status    timestamp             user     reviewer\n";
@@ -87,11 +87,11 @@ sub print_row {
     ;
 }
 
-package GSG::Gitc::ListFormat::Summary;
+package App::Gitc::ListFormat::Summary;
 use strict;
 use warnings;
-use base qw( GSG::Gitc::ListFormat::Base );
-use GSG::Gitc::Util qw( history_status history_reviewer );
+use base qw( App::Gitc::ListFormat::Base );
+use App::Gitc::Util qw( history_status history_reviewer );
 
 sub print_header {
     my ($self) = @_;
@@ -137,11 +137,11 @@ sub print_footer {
     }
 }
 
-package GSG::Gitc::ListFormat::Yaml;
+package App::Gitc::ListFormat::Yaml;
 use strict;
 use warnings;
-use base qw( GSG::Gitc::ListFormat::Base );
-use GSG::Gitc::Util qw(
+use base qw( App::Gitc::ListFormat::Base );
+use App::Gitc::Util qw(
     history_owner history_status history_reviewer
     its_for_changeset
 );
@@ -179,10 +179,10 @@ sub print_row {
     print YAML::Syck::Dump($data);
 }
 
-package GSG::Gitc::ListFormat::Dump;
+package App::Gitc::ListFormat::Dump;
 use strict;
 use warnings;
-use base qw( GSG::Gitc::ListFormat::Base );
+use base qw( App::Gitc::ListFormat::Base );
 
 sub print_row {
     my ($self, $changeset, $history) = @_;

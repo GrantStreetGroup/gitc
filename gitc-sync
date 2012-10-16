@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     git
     confirm current_branch
     guarantee_a_clean_working_directory

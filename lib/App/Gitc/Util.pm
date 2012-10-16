@@ -1,4 +1,4 @@
-package GSG::Gitc::Util;
+package App::Gitc::Util;
 use strict;
 use warnings;
 
@@ -133,7 +133,7 @@ object... but this fits the bill.
 sub _package_its {
     my $its_type = shift;
 
-    return 'GSG::Gitc::Its::'.ucfirst $its_type; 
+    return 'App::Gitc::Its::'.ucfirst $its_type; 
 }
 sub its {
     my $its = shift || project_config()->{'default_its'};
@@ -423,8 +423,8 @@ Returns a hashref with configuration details about this project.
 =cut
 
 sub project_config {
-    require GSG::Gitc::Config;
-    my $projects = $GSG::Gitc::Config::config{projects};
+    require App::Gitc::Config;
+    my $projects = $App::Gitc::Config::config{projects};
     my $project_config = $projects->{ project_name() };
     return $project_config if defined $project_config;
     return $projects->{_default};

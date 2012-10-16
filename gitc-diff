@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw( branch_point );
+use App::Gitc::Util qw( branch_point );
 
 my $merge_base = branch_point();
 exec "git diff --no-prefix @ARGV $merge_base HEAD";

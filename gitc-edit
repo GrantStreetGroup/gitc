@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     git
     git_fetch_and_clean_up
     guarantee_a_clean_working_directory
@@ -29,7 +29,7 @@ use GSG::Gitc::Util qw(
     remote_branch_exists
     project_name
 );
-use GSG::Reversible;
+use App::Gitc::Reversible;
 
 my $changeset = shift or die "You must specify a changeset name\n";
 git_fetch_and_clean_up();

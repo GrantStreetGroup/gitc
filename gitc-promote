@@ -18,7 +18,7 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use GSG::Gitc::Util qw(
+use App::Gitc::Util qw(
     confirm
     current_branch
     environment_preceding
@@ -39,7 +39,7 @@ use GSG::Gitc::Util qw(
     sort_changesets_by_name
     unpromoted
 );
-use GSG::Reversible;
+use App::Gitc::Reversible;
 use POSIX qw( strftime );
 use Getopt::Long qw( :config pass_through );
 
