@@ -2,8 +2,6 @@ use strict;
 use warnings;
 package App::Gitc;
 
-our $VERSION = '0.58';
-
 =head1 See
 
 L<App::Gitc::Util>
