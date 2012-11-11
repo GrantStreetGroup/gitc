@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-review
 
 use strict;
 use warnings;

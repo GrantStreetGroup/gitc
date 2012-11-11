@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-touch
 
 use strict;
 use warnings;

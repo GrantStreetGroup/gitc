@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-history
 
 use strict;
 use warnings;

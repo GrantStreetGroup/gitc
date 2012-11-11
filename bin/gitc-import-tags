@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-import-tags
 
 use strict;
 use warnings;

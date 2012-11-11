@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-diff
 
 use strict;
 use warnings;

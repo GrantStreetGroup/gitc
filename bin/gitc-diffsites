@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-diffsites
 
 use strict;
 use warnings;

@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-archive-tags
 
 use strict;
 use warnings;

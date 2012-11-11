@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-promoted
 
 use strict;
 use warnings;

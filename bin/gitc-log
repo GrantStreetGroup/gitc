@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-log
 
 use strict;
 use warnings;

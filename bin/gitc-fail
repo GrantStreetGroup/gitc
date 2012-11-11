@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-fail
 
 use strict;
 use warnings;

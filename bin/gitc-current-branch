@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-current-branch
 
 use strict;
 use warnings;

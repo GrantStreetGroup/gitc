@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# PODNAME: gitc-quickfix
 
 use strict;
 use warnings;
