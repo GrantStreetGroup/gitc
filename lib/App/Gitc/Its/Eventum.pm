@@ -1,4 +1,6 @@
 package App::Gitc::Its::Eventum;
+use strict;
+use warnings;
 
 =head1 NAME
 

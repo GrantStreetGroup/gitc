@@ -2,6 +2,9 @@ package App::Gitc::Config;
 use strict;
 use warnings;
 
+require Exporter;
+our @EXPORT = qw( $git_config );
+
 =head1 Synopsis
 
 Configuration file for gitc
@@ -144,13 +147,8 @@ our %config = (
     },
 );
 
-sub import {
-    my $package = caller;
-    our %config;
-    no strict 'refs';
-    *{ $package . '::gitc_config' } = \%config;
-    return;
-}
+# The exported version of the configuration
+our $git_config = \%config;
 
 =head1 AUTHOR
 
