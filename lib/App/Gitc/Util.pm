@@ -974,6 +974,8 @@ directory is used instead.
 
 =cut
 
+use Date::Format;
+
 sub history {
     my ( $project_name, $changeset )
         = @_ == 2 ? @_ : ( project_name(), @_ );
@@ -982,7 +984,10 @@ sub history {
     return [] unless $changeset_exists;
 
     my $events = view_blob("meta/$changeset");
-    $_->{stamp} = localtime $_->{stamp} for @$events;
+    for (@$events) {
+        my @lt = localtime $_->{stamp};
+        $_->{stamp} = strftime("%Y-%m-%d %T", @lt);
+    }
 
     return wantarray ? @$events : $events;
 }
@@ -1512,7 +1517,8 @@ sub unmerged_changesets {
 
     my %result;
     for my $event (sort {$a->{stamp} <=> $b->{stamp}} @unmerged) {
-        $event->{stamp} = localtime $event->{stamp};
+        my @lt = localtime $event->{stamp};
+        $event->{stamp} = strftime("%Y-%m-%d %T", @lt);
         push @{ $result{ $event->{changeset} } }, $event;
     }
 
