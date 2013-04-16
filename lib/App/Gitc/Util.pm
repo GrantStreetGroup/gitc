@@ -332,15 +332,18 @@ sub meta_data_add {
     my ($entries) = @_;
     $entries = [ $entries ] if ref($entries) ne 'ARRAY';
 
-    git "fetch origin --tags";
+    my @meta_tags = get_meta_tags();
     my $single_id;
+
+    my %meta_tags;
+    ++$meta_tags{$_} for @meta_tags;
 
     for my $data (@$entries) {
         # remember which user performed this action
         $data->{user} = getpwuid $> if not exists $data->{user};
         my $changeset = $data->{changeset};
 
-        my $meta_info = view_blob("meta/$changeset") || [];
+        my $meta_info = $meta_tags{"meta/$changeset"} ? view_blob("meta/$changeset") : [];
         my $id = scalar @$meta_info;
         $single_id = $id if @$entries == 1;
 
@@ -348,9 +351,11 @@ sub meta_data_add {
         $meta_info->[$id] = $data;
 
         my $blob = create_blob($meta_info);
-        eval {git_tag('-d', "meta/$changeset")};
+        
+        my $exists = grep {m|^meta/$changeset|} get_meta_tags();
+        git_tag('-d', "meta/$changeset") if $exists;
         git_tag("meta/$changeset", $blob);
-        eval {git "push origin :meta/$changeset"};
+        git "push origin :meta/$changeset" if $exists;
         git "push origin meta/$changeset";
     }
 
@@ -973,7 +978,9 @@ sub history {
     my ( $project_name, $changeset )
         = @_ == 2 ? @_ : ( project_name(), @_ );
 
-    git 'fetch origin --tags';
+    my $changeset_exists = grep {m|^meta/$changeset|} get_meta_tags();
+    return [] unless $changeset_exists;
+
     my $events = view_blob("meta/$changeset");
     $_->{stamp} = localtime $_->{stamp} for @$events;
 
