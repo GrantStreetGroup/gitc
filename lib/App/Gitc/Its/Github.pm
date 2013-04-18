@@ -21,9 +21,11 @@ use Pithub::Issues;
 
 use App::Gitc::Util qw(
     project_config
+    project_name
     command_name
     current_branch
 );
+use List::MoreUtils qw(any);
 
 sub label_service { return 'Github'; }
 sub label_issue { return 'Issue'; }
@@ -60,8 +62,25 @@ sub get_github_object {
     return $github;
 }
 
+our $github_conf;
+
 sub get_github_opts {
-# TODO figure out config
+    if (not $github_conf and -e "$ENV{HOME}/.gitc/github.conf") {
+        $github_conf = YAML::LoadFile("$ENV{HOME}/.gitc/github.conf");
+    }
+    else {
+        $github_conf ||= {}; 
+    }
+    
+    my $project = project_name(); 
+
+    return (
+        user => $github_conf->{$project}{Owner}, 
+        repo => $github_conf->{$project}{Repo}, 
+        prepare_request => sub {
+            return shift->authorization_basic(@{$github_conf}{qw(Username Password)});
+        },
+    );
 }
 
 sub _get_issue {
@@ -72,7 +91,6 @@ sub _get_issue {
 
     my $r = $github->get(issue_id => $number);
     die "Issue $number didn't return an object" unless $r->response->code == 200;
-
     return $r->content;
 }
 
@@ -99,7 +117,6 @@ sub transition_state {
         if $ENV{GITC_NO_GITHUB};
 
     my $label = $self->label_issue;
-
     # validate the arguments
     my ($command, $message, $reviewer, $issue) = @{$args}{qw/command message reviewer issue/};
     die "No message" unless $message;
@@ -109,7 +126,6 @@ sub transition_state {
     my $state = $self->_states( $command, $args->{target} );
     my ($from, $to, $flag) = @{$state}{qw/from to flag/};
 
-    my ($github_user) = $self->lookup_github_user;
     $message = (getpwuid $>)[6]   # user's name
         . ": $message\n";
 
@@ -118,13 +134,14 @@ sub transition_state {
     my ( $rc );
     eval {
         my $github = $self->get_github_object or return;
+        my ($from) = grep {/($from)/} map {$_->{name}} @{$github->labels->list(issue_id => $issue->{number})->content};
         my $r = $github->comments->create(issue_id => $issue->{number}, data => {body => $message});
         die "Could not comment on issue $issue->{number}" unless $r->response->code == 201;
         $r = $github->labels->remove(issue_id => $issue->{number}, label => $from);
-        die "Could not update issue $issue->{number}" unless $r->response->code == 200;
+        #die "Could not update issue $issue->{number}" unless $r->response->code == 200;
         $r = $github->labels->add(issue_id => $issue->{number}, data => [$to]);
         die "Could not update issue $issue->{number}" unless $r->response->code == 200;
-        $rc = ($r->{_content}[0]{name} eq $to); 
+        $rc = ($r->content->[0]{name} eq $to); 
         # TODO update github
     };
     die $@ if $@;
