@@ -155,6 +155,7 @@ reversibly {
         my $issue = $its->get_issue($changeset, reload => 1);
         my $project = project_name();
         my $what_happened = $its->transition_state({
+            command => 'submit',
             issue   => $issue,
             reviewer  => $reviewer,
             message => "Submitted $project#$changeset to $reviewer for code review",

@@ -3,6 +3,7 @@ use strict;
 use warnings;
 
 require Exporter;
+our @ISA = qw( Exporter );
 our @EXPORT = qw( $git_config );
 
 =head1 Synopsis

@@ -1548,9 +1548,9 @@ sub changesets_in {
     my ($commits, $backstop) = @_;
 
     # view all commits in $from that are not in $to
-    my $command = "git log --no-color --first-parent --topo-order --pretty=format:%H";
-    $command .= " ^$backstop" if $backstop;
-    open my $log, "-|", $command, @$commits or die;
+    my @command = qw( git log --no-color --first-parent --topo-order --pretty=format:%H );
+    push @command, " ^$backstop" if $backstop;
+    open my $log, "-|", @command, @$commits or die;
 
     # extract the implied changesets (based on their merge points)
     my $env = qr/(?:master|test|stage|prod)/;
