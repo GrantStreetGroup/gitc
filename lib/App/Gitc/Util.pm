@@ -3,6 +3,8 @@ use strict;
 use warnings;
 
 use base qw( Exporter );
+use YAML::Syck;
+use Hash::Merge::Simple qw( merge );
 
 # To help gitc load quickly, only use modules here which
 # must be loaded at compile time.  Otherwise, use "require Foo"
@@ -13,7 +15,7 @@ use List::MoreUtils qw( first_index );
 
 use Class::MOP;
 
-use YAML;
+use constant => GITC_CONFIG => '/etc/gitc/gitc.config';
 
 BEGIN {
     our @EXPORT = qw(
@@ -475,11 +477,46 @@ Returns a hashref with configuration details about this project.
 =cut
 
 sub project_config {
+    my $project_name = shift;
+
     require App::Gitc::Config;
+    my @files = (GITC_CONFIG);
+    # we can't pull from the per-project dir if we specify the project_name
+    my $project_file;
+    unless ($project_name) {
+        my $root = project_root();
+        $project_file = $root . '/gitc.config';
+        push(@files, $project_file);
+    }
+
+    push(@files, $ENV{HOME} . '/.gitc/gitc.config');
+    # we default to looking up the project name via git if not passed in
+    $project_name ||=  project_name();
+    if ($ENV{GITC_CONFIG}) {
+        push(@files, split(':', $ENV{GITC_CONFIG}));
+    }
+    
     my $projects = $App::Gitc::Config::config{projects};
-    my $project_config = $projects->{ project_name() };
-    return $project_config if defined $project_config;
-    return $projects->{_default};
+    local $YAML::Syck::UseCode = 1;
+    foreach my $file (@files) {
+        next unless -f $file;
+        my $data = eval {YAML::Syck::LoadFile($file)};
+        # Allow the config file that is in the project_dir to not have to specify itself
+        # This will allow that configuration file to be formatted slightly differently
+        # but in a way which would make more sense locally to that project
+        if ($file eq $project_file) {
+            if (!$data->{$project_name} and keys %{$data}) {
+                $data = {$project_name => $data};
+            }
+        }
+    
+        $projects = merge $projects, $data;
+    }
+    my $default = $projects->{_default};
+    my $project_config = $projects->{ $project_name } || {};
+    $project_config = merge $default, $project_config if $project_config;
+    
+    return $project_config;
 }
 
 =head1 Optionally Exported Subroutines
