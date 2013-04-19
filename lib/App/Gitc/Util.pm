@@ -474,6 +474,21 @@ sub new_version_tag {
 
 Returns a hashref with configuration details about this project.
 
+Configuration is loaded from the following sources:
+* App::Gitc::Config (legacy)
+* /etc/gitc/gitc.config
+* $PROJECT_ROOT/gitc.config
+* $HOME/.gitc/gitc.config
+
+It will then parse all the paths in the GITC_CONFIG environment variable 
+(separated by :).
+
+These configuration files are all merged together with the later files
+overriding the earlier.  
+
+Finally we merge the default config with the per-project configuration
+we found to generate a final fully baked configuration for the project.
+
 =cut
 
 sub project_config {
