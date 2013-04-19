@@ -404,7 +404,7 @@ sub cherry_pick_promotion {
             changeset => $changeset,
             target    => $target,
         });
-        to_undo { meta_data_rm($id) };
+        to_undo { meta_data_rm(id => $id, changeset => $changeset) };
         my $tag_name = "cs/$changeset/to-$target";
         git_tag( $tag_name, 'HEAD' );
         push @new_tags, $tag_name;
