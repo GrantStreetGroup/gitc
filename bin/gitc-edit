@@ -68,6 +68,7 @@ if ($its) {
     print STDERR "Updating $its_label...";
     my $project = project_name();
     my $what_happened = $its->transition_state({
+        command => 'edit',
         message => "Edited an existing changeset: $project#$changeset",
     });
     print STDERR "done\n";

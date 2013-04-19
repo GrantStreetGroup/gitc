@@ -32,7 +32,7 @@ use Time::Local qw( timegm timelocal );
 use List::MoreUtils qw( first_index );
 
 # process command line arguments
-our ($period, $bare);
+our ($period, $bare) = ('sometime');
 GetOptions(
     'period|p=s' => \$period,
     'bare|b'     => \$bare,

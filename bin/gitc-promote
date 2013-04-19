@@ -207,6 +207,7 @@ if (@new_tags) {
             next if $seen{ $its->issue_number($issue) }++;
             eval {
                 my $what_happened = $its->transition_state({
+                    command => 'promote',
                     issue   => $issue,
                     target  => $target,
                     message => "Promoted $project#$cs to $target "
