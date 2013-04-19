@@ -13,6 +13,8 @@ use List::MoreUtils qw( first_index );
 
 use Class::MOP;
 
+use YAML;
+
 BEGIN {
     our @EXPORT = qw(
         current_branch
@@ -301,39 +303,65 @@ Returns a unique identifier which can be used by L</meta_data_rm>.
 
 =cut
 
+sub create_blob {
+    my ($data_ref) = @_;
+
+    my $tmp_file = "meta-$$.tmp";
+
+    open my $tmp, ">", $tmp_file;
+    print {$tmp} Dump($data_ref);
+    print {$tmp} "\n";
+
+    my $blob = git "hash-object -w $tmp_file";
+
+    close $tmp;
+    unlink $tmp_file;
+
+    return $blob;
+}
+
+sub view_blob {
+    my ($ref) = @_;
+
+    my $output = git "show $ref";
+    
+    return ($output and $output !~ /^fatal:/) ? Load($output) : undef;
+}
+
 sub meta_data_add {
     my ($entries) = @_;
     $entries = [ $entries ] if ref($entries) ne 'ARRAY';
 
-    my %keys_seen;
+    my @meta_tags = get_meta_tags();
+    my $single_id;
+
+    my %meta_tags;
+    ++$meta_tags{$_} for @meta_tags;
+
     for my $data (@$entries) {
         # remember which user performed this action
         $data->{user} = getpwuid $> if not exists $data->{user};
+        my $changeset = $data->{changeset};
 
-        # infer which project this is for
-        if ( not exists $data->{project} ) {
-            $data->{project} = project_name();
-        }
+        my $meta_info = $meta_tags{"meta/$changeset"} ? view_blob("meta/$changeset") : [];
+        my $id = scalar @$meta_info;
+        $single_id = $id if @$entries == 1;
 
-        my @keys = keys %$data;
-        @keys_seen{@keys} = (1) x @keys;
+        $data->{stamp} = time;
+        $meta_info->[$id] = $data;
+
+        my $blob = create_blob($meta_info);
+        
+        my $exists = grep {m|^meta/$changeset|} get_meta_tags();
+        git_tag('-d', "meta/$changeset") if $exists;
+        git_tag("meta/$changeset", $blob);
+        git "push origin :meta/$changeset" if $exists;
+        git "push origin meta/$changeset";
     }
-
-    # insert all the rows at once
-    my @keys = keys %keys_seen;
-    my $sql = 'INSERT INTO changeset_log ('
-            . join(',', @keys)
-            . ') VALUES '
-            ;
-    my $binds = '(' . join( ',', ('?') x @keys ) . ')';
-    $sql .= join( ',', ($binds)x@$entries );
-    my @bind_values = map { @{$_}{@keys} } @$entries;
-    dbh()->do( $sql, undef, @bind_values );
 
     # the return value only makes sense for single inserts
     return if @$entries > 1;
-    my ($id) = dbh()->selectrow_array('select last_insert_id()');
-    return $id;
+    return $single_id;
 }
 
 =head2 meta_data_rm($id)
@@ -343,8 +371,21 @@ Deletes the meta data entry with ID C<$id>.
 =cut
 
 sub meta_data_rm {
-    my ($id) = @_;
-    return dbh()->do('delete from changeset_log where id = ?', undef, $id);
+    my %args = @_;
+
+    git "fetch origin --tags";
+
+    my $meta_info = view_blob("meta/$args{changeset}");
+    return unless $meta_info;
+
+    splice(@$meta_info, $args{id}, 1);
+    my $blob = create_blob($meta_info);
+    git_tag('-d', "meta/$args{changeset}");
+    git_tag("meta/$args{changeset}", $blob);
+    git "git push origin :meta/$args{changeset}";
+    git "git push origin meta/$args{changeset}";
+
+    return;
 }
 
 =head2 meta_data_rm_all($changeset)
@@ -357,10 +398,19 @@ meta data entries that were deleted.
 
 sub meta_data_rm_all {
     my ($changeset) = @_;
-    my $project = project_name();
 
-    my $sql = 'DELETE FROM changeset_log WHERE project = ? AND changeset = ?';
-    return dbh()->do( $sql, undef, $project, $changeset );
+    git "fetch origin --tags";
+    my $meta_tag = ($changeset =~ m{^meta/}) ? $changeset : 
+        "meta/$changeset";
+
+    git_tag('-d', "$meta_tag");
+    git "push origin :$meta_tag";
+}
+
+sub get_meta_tags {
+    git "fetch origin --tags";
+    my $meta_tag_string = git "tag -l 'meta/*'";
+    return split "\n", $meta_tag_string;
 }
 
 =head2 meta_data_rm_project($project)
@@ -373,8 +423,10 @@ the number of meta data entries that were deleted.
 sub meta_data_rm_project {
     my ($project) = @_;
 
-    my $sql = 'DELETE FROM changeset_log WHERE project = ?';
-    return dbh()->do( $sql, undef, $project );
+    my @meta_tags = get_meta_tags();
+    meta_data_rm_all($_) for @meta_tags;
+
+    return;
 }
 
 =head2 new_branch_version($branch, $new_major_version)
@@ -590,17 +642,13 @@ sub changeset_group {
     }xms;
 
     my $project_name = project_name();
-    my $sql = qq{
-        SELECT DISTINCT changeset
-        FROM changeset_log
-        WHERE project = ?
-          AND action  = 'open'
-          AND changeset
-    };
-    $sql .= defined $prefix
-        ? qq{ like '$prefix$number%' }
-        : qq{ = '$changeset' };
-    my $changesets = dbh()->selectcol_arrayref( $sql, undef, $project_name );
+
+    my @meta_tags = get_meta_tags();
+    my @changesets = grep {defined $prefix ? /$prefix$number/ : $_ eq $changeset} 
+        map {s{^meta/}{}} @meta_tags;
+    my @open_changesets = grep {my $meta_info = view_blob($_); $meta_info->[-1]{action} eq 'open'} @changesets;
+    my $changesets = \@open_changesets;
+
     return $changesets if not defined $prefix;
     return $changesets if $prefix ne 'e';
 
@@ -638,6 +686,8 @@ between the times C<$start> and C<$end>.  The times should be in the format
 
 =cut
 
+use Date::Parse;
+
 sub changesets_promoted_between {
     my ($args) = @_;
     my $project = $args->{project} or die "No project\n";
@@ -645,19 +695,24 @@ sub changesets_promoted_between {
     my $start   = $args->{start}   or die "No start time\n";
     my $end     = $args->{end}     or die "No end time\n";
 
-    my $sql = q{
-        SELECT  changeset
-        FROM    changeset_log
-        WHERE   project = ?
-         AND    action  = 'promote'
-         AND    target  = ?
-         AND    stamp between ? and ?
-    };
-    my $changesets = dbh()->selectcol_arrayref(
-        $sql,
-        undef,
-        $project, $target, $start, $end,
-    );
+    $start = str2time($start);
+    $end   = str2time($end);
+
+    my @meta_tags = get_meta_tags();
+    my $changesets = [];
+    for my $tag (@meta_tags) {
+        my ($cs_name) = $tag =~ m{^meta/(.*)}; 
+        my $meta_info = view_blob($tag);
+        my ($ok_target, $ok_time);
+        for my $entry (@$meta_info) {
+            ($ok_target, $ok_time) = ();
+            next unless $entry->{action} eq 'promote';
+            my $stamp = $entry->{stamp};
+            ++$ok_target if $entry->{target} eq $target;
+            ++$ok_time if ($stamp > $start and $stamp < $end);
+        }
+        push @$changesets, $cs_name if ($ok_target and $ok_time); 
+    }
 
     return @$changesets;
 }
@@ -899,16 +954,10 @@ C<$project_name>.  If there have been no quickfix changesets, returns 0.
 
 sub highest_quickfix_number {
     my ($project_name) = @_;
-    my $dbh = dbh();
-    my $sql = q{
-        SELECT      changeset
-        FROM        changeset_log
-        WHERE       project = ?
-          AND       action  = 'open'
-          AND       changeset LIKE 'quickfix%'
-    };
-    my $quickfixes = $dbh->selectcol_arrayref( $sql, undef, $project_name );
-    my @numbers = map { /quickfix(\d+)$/ ? $1 : () } @$quickfixes;
+
+    git 'fetch origin --tags';
+    my @quickfixes = grep {m|^meta/quickfix|} get_meta_tags();
+    my @numbers = map { /quickfix(\d+)$/ ? $1 : () } @quickfixes;
     return 0 if not @numbers;
     return max @numbers;
 }
@@ -925,22 +974,21 @@ directory is used instead.
 
 =cut
 
+use Date::Format;
+
 sub history {
     my ( $project_name, $changeset )
         = @_ == 2 ? @_ : ( project_name(), @_ );
-    my $dbh = dbh();
-    my $sql = q{
-        SELECT      *
-        FROM        changeset_log
-        WHERE       project   = ?
-          AND       changeset = ?
-        ORDER BY    stamp
-    };
-    my $events = $dbh->selectall_arrayref(
-        $sql,
-        { Slice => {} },
-        $project_name, $changeset,
-    );
+
+    my $changeset_exists = grep {m|^meta/$changeset|} get_meta_tags();
+    return [] unless $changeset_exists;
+
+    my $events = view_blob("meta/$changeset");
+    for (@$events) {
+        my @lt = localtime $_->{stamp};
+        $_->{stamp} = strftime("%Y-%m-%d %T", @lt);
+    }
+
     return wantarray ? @$events : $events;
 }
 
@@ -1455,42 +1503,25 @@ values are the respective changeset histories (see L</history>).
 
 sub unmerged_changesets {
     my ($project_name) = @_;
-    my $dbh = dbh();
 
-    # find all merged changesets for this project
-    my $sql = q{
-        CREATE TEMPORARY TABLE merged (
-            changeset VARCHAR(40) NOT NULL,
-            INDEX merged_changeset (changeset)
-        )
-        SELECT  changeset
-        FROM    changeset_log
-        WHERE   project = ?
-          AND   action  = 'pass'
-    };
-    $dbh->do( $sql, undef, $project_name );
-
-    # join all changesets with the merged ones
-    $sql = q{
-        SELECT      every.*
-        FROM        changeset_log every
-        LEFT JOIN   merged ON every.changeset = merged.changeset
-        WHERE       every.project   = ?
-          AND       merged.changeset IS NULL
-        ORDER BY    stamp
-    };
-    my $events = $dbh->selectall_arrayref(
-        $sql,
-        { Slice => {} },
-        $project_name,
-    );
+    my @meta_tags = get_meta_tags();
+    my @unmerged;
+    for my $tag (@meta_tags) {
+        my $meta_info = view_blob($tag);
+        my $passed;
+        for my $entry (@$meta_info) {
+            ++$passed if $entry->{action} eq 'pass';
+        }
+        push @unmerged, @$meta_info unless $passed;
+    }
 
     my %result;
-    for my $event (@$events) {
+    for my $event (sort {$a->{stamp} <=> $b->{stamp}} @unmerged) {
+        my @lt = localtime $event->{stamp};
+        $event->{stamp} = strftime("%Y-%m-%d %T", @lt);
         push @{ $result{ $event->{changeset} } }, $event;
     }
 
-    $dbh->do('DROP TEMPORARY TABLE merged');
     return \%result;
 }
 

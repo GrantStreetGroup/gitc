@@ -50,7 +50,6 @@ my ( $project_name, $changeset ) = parse_changeset_spec($changeset_spec);
 # retrieve the changeset's history
 my $history = history($project_name, $changeset);
 die "There is no changeset named $project_name#$changeset\n" if not @$history;
-
 # display the history
 my $format = "%-20s %4s %-8s %-8s %-8s %-5s\n";
 printf $format, qw( Date Dur. Action User Reviewer Env. );
@@ -101,9 +100,11 @@ if (@dependencies) {
 
 ######################### helper subroutines ######################
 
+use Date::Parse;
+
 sub pretty_duration {
-    my $from = parse_stamp(shift);
-    my $to = parse_stamp(shift) || time;
+    my $from = str2time(shift);
+    my $to = str2time(shift) || time;
     my $diff = $to - $from;
     my @units = (
         y => 60*60*24*7*4*12,
