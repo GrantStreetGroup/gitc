@@ -15,7 +15,7 @@ use List::MoreUtils qw( first_index );
 
 use Class::MOP;
 
-use constant => GITC_CONFIG => '/etc/gitc/gitc.config';
+use constant GITC_CONFIG => '/etc/gitc/gitc.config';
 
 BEGIN {
     our @EXPORT = qw(
