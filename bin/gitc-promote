@@ -20,6 +20,7 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use App::Gitc::Util qw(
+    cache_meta_data
     confirm
     current_branch
     environment_preceding
@@ -36,6 +37,7 @@ use App::Gitc::Util qw(
     new_version_tag
     project_config
     project_name
+    restore_meta_data
     short_ref_name
     sort_changesets_by_name
     unpromoted
@@ -377,6 +379,9 @@ sub cherry_pick_promotion {
     else {
         @refs = schedule_refs_by_dependency(@refs);
     }
+
+    cache_meta_data(@refs);
+
     CHANGESET:
     while ( my $ref = shift @refs ) {
         my $changeset = short_ref_name($ref);
@@ -403,8 +408,9 @@ sub cherry_pick_promotion {
             action    => 'promote',
             changeset => $changeset,
             target    => $target,
+            flush     => 0,
         });
-        to_undo { meta_data_rm(id => $id, changeset => $changeset) };
+        to_undo { meta_data_rm(id => $id, changeset => $changeset, flush => 0) };
         my $tag_name = "cs/$changeset/to-$target";
         git_tag( $tag_name, 'HEAD' );
         push @new_tags, $tag_name;
@@ -417,6 +423,11 @@ sub cherry_pick_promotion {
             to_undo { git "tag $rm_tag $ref" };
         }
     }
+
+    # flush the changes
+    to_undo { restore_meta_data(); };
+    meta_data_rm();
+    meta_data_add();
 
     return ( \@promoted_refs, \@new_tags );
 }
@@ -493,6 +504,8 @@ sub full_promotion {
         git "reset --hard";
     }
 
+    cache_meta_data(@unpromoted);
+
     # add meta data and create the necessary tags
     my @new_tags;
     for my $changeset (@unpromoted) {
@@ -501,14 +514,20 @@ sub full_promotion {
             action    => 'promote',
             changeset => $changeset,
             target    => $target,
+            flush     => 0,
         });
-        to_undo { meta_data_rm($id) };
+        to_undo { meta_data_rm(id => $id, changeset => $changeset, flush => 0,) };
 
         my $tag_name = "cs/$changeset/to-$target";
         git "tag $tag_name HEAD";
         push @new_tags, $tag_name;
         to_undo { pop @new_tags; git "tag -d $tag_name" };
     }
+    
+    # flush the changes
+    to_undo { restore_meta_data(); };
+    meta_data_rm();
+    meta_data_add();
 
     return ( [], \@new_tags );
 }

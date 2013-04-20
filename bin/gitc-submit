@@ -107,7 +107,7 @@ reversibly {
         changeset => $changeset,
         reviewer  => $reviewer,
     });
-    to_undo { meta_data_rm($id) };
+    to_undo { meta_data_rm(id => $id, changeset => $changeset) };
 
     # record the review action for self-review
     if ( $self_review ) {
@@ -115,7 +115,7 @@ reversibly {
             action    => 'review',
             changeset => $changeset,
         });
-        to_undo { meta_data_rm($id) };
+        to_undo { meta_data_rm(id => $id, changeset => $changeset) };
     }
 
     # put the changeset branch where others can see it

@@ -97,7 +97,7 @@ reversibly {
         action    => 'open',
         changeset => $changeset_name,
     });
-    to_undo { meta_data_rm($id) };
+    to_undo { meta_data_rm(id => $id, changeset => $changeset_name) };
 };
 
 if ($its) {

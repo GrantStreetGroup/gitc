@@ -37,6 +37,7 @@ BEGIN {
         archived_tags
         branch_basis
         branch_point
+        cache_meta_data
         changeset_group
         changeset_merged_to
         changesets_in
@@ -68,6 +69,7 @@ BEGIN {
         project_name
         project_root
         remote_branch_exists
+        restore_meta_data
         sendmail
         short_ref_name
         sort_changesets_by_name
@@ -294,13 +296,6 @@ sub let_user_edit {
     system "$editor $filename";
 }
 
-=head2 meta_data_add($data)
-
-Appends the contents of the hashref C<$data> to the changeset meta data.
-Returns a unique identifier which can be used by L</meta_data_rm>.
-
-=cut
-
 sub create_blob {
     my ($data_ref) = @_;
 
@@ -326,16 +321,27 @@ sub view_blob {
     return ($output and $output !~ /^fatal:/) ? Load($output) : undef;
 }
 
+=head2 meta_data_add($data)
+
+Appends the contents of the hashref C<$data> to the changeset meta data.
+Returns a unique identifier which can be used by L</meta_data_rm>.
+
+=cut
+
 sub meta_data_add {
     my ($entries) = @_;
     $entries = [ $entries ] if ref($entries) ne 'ARRAY';
 
     my @meta_tags = get_meta_tags();
-    my $single_id;
-
     my %meta_tags;
     ++$meta_tags{$_} for @meta_tags;
 
+    our $tag_buffer;
+    initialize_tag_buffer() unless $tag_buffer;
+    my @tags;
+    my $single_id;
+
+    my $flush = 1;
     for my $data (@$entries) {
         # remember which user performed this action
         $data->{user} = getpwuid $> if not exists $data->{user};
@@ -345,6 +351,8 @@ sub meta_data_add {
         my $id = scalar @$meta_info;
         $single_id = $id if @$entries == 1;
 
+        my $flag = delete $data->{flush};
+        $flush = 0 if defined $flag and $flag == 0; 
         $data->{stamp} = time;
         $meta_info->[$id] = $data;
 
@@ -353,8 +361,25 @@ sub meta_data_add {
         my $exists = grep {m|^meta/$changeset|} get_meta_tags();
         git_tag('-d', "meta/$changeset") if $exists;
         git_tag("meta/$changeset", $blob);
-        git "push origin :meta/$changeset" if $exists;
-        git "push origin meta/$changeset";
+        push @tags, "meta/$changeset";
+    }
+
+    push @{$tag_buffer->{meta_add}}, @tags;
+    
+    # this makes sure we dont update the same tag twice(on add and rm)
+    # not dangerous to do, just a little bit slower
+    if (my @rm_tags = @{$tag_buffer->{meta_rm}}) {
+        for my $tag (@tags) {
+            my $i = first_index {$_ eq $tag} @rm_tags;
+            next unless defined $i;
+            splice(@rm_tags, $i, 1);
+        }
+        $tag_buffer->{meta_rm} = \@rm_tags
+    }    
+
+    if ($flush) {
+        my @buffered_tags = @{$tag_buffer->{meta_add}};
+        git "push --force origin @buffered_tags" if @buffered_tags;
     }
 
     # the return value only makes sense for single inserts
@@ -362,26 +387,61 @@ sub meta_data_add {
     return $single_id;
 }
 
-=head2 meta_data_rm($id)
+sub initialize_tag_buffer {
+    our $tag_buffer = {};
+    $tag_buffer->{meta_add} = [];
+    $tag_buffer->{meta_rm}  = [];
 
-Deletes the meta data entry with ID C<$id>.
+    return;
+}
+
+=head2 meta_data_rm({id => $id, changeset => $changeset})
+
+Deletes the meta data entry with ID C<$id> in changeset C<$changeset>.
 
 =cut
 
 sub meta_data_rm {
-    my %args = @_;
+    my @args = (ref $_[0] eq 'HASH') ? @_ : @_ ? {@_} : ();
+    # force into array of hashrefs
 
-    git "fetch origin --tags";
+    our $recent_meta_data;
+    ++$recent_meta_data and git "fetch origin --tags" if not $recent_meta_data;
 
-    my $meta_info = view_blob("meta/$args{changeset}");
-    return unless $meta_info;
+    our $tag_buffer;
+    initialize_tag_buffer() unless $tag_buffer;
 
-    splice(@$meta_info, $args{id}, 1);
-    my $blob = create_blob($meta_info);
-    git_tag('-d', "meta/$args{changeset}");
-    git_tag("meta/$args{changeset}", $blob);
-    git "git push origin :meta/$args{changeset}";
-    git "git push origin meta/$args{changeset}";
+    my @tags;
+    my $flush = 1;
+    for my $arg (@args) {
+        my $meta_info = view_blob("meta/$arg->{changeset}");
+        return unless $meta_info;
+
+        splice(@$meta_info, $arg->{id}, 1);
+        my $blob = create_blob($meta_info);
+        git_tag('-d', "meta/$arg->{changeset}");
+        git_tag("meta/$arg->{changeset}", $blob);
+        push @tags, "meta/$arg->{changeset}";
+        $flush = 0 if exists $arg->{flush} and $arg->{flush} == 0;
+    }
+
+    push @{$tag_buffer->{meta_rm}}, @tags;
+
+    # this makes sure we dont update the same tag twice(on add and rm)
+    # not dangerous to do, just a little bit slower
+    if (my @add_tags = @{$tag_buffer->{meta_add}}) {
+        for my $tag (@tags) {
+            my $i = first_index {$_ eq $tag} @add_tags;
+            next unless defined $i;
+            splice(@add_tags, $i, 1);
+        }
+        $tag_buffer->{meta_rm} = \@add_tags;
+    }
+
+    if ($flush) {
+        my @buffered_tags = @{$tag_buffer->{meta_rm}};
+        git "push --force origin @buffered_tags" if @buffered_tags;
+    }
 
     return;
 }
@@ -406,7 +466,11 @@ sub meta_data_rm_all {
 }
 
 sub get_meta_tags {
-    git "fetch origin --tags";
+    my (%args) = @_;
+    $args{fetch} //= 1;
+    our $recent_meta_data;
+
+    ++$recent_meta_data and git "fetch origin --tags" if $args{fetch} and not $recent_meta_data;
     my $meta_tag_string = git "tag -l 'meta/*'";
     return split "\n", $meta_tag_string;
 }
@@ -1605,6 +1669,30 @@ sub unpromoted {
     my @source_changes = changesets_in( $from, $backstop );
     my @target_changes = changesets_in( $to,   $backstop );
     return _missing_changesets( \@source_changes, \@target_changes );
+}
+
+our $meta_cache;
+
+sub cache_meta_data {
+    my (@refs) = @_;
+    @refs = get_meta_tags(fetch => 0) unless @refs;
+    @refs = map {m|^meta/| ? $_ : "meta/$_"} @refs;
+
+    push @$meta_cache, map { {$_ => git "rev-parse $_"} } @refs;
+
+    return;
+}
+
+sub restore_meta_data {
+    our $meta_cache;
+    die "You cannot restore meta data without caching any data" unless $meta_cache;
+
+    git_tag('-d', $_) for map {keys %$_} @$meta_cache;
+    git_tag(%$_) for @$meta_cache;
+    git sprintf "push --force origin %s", join ' ', map {keys %$_} @$meta_cache;
+
+    undef $meta_cache;
+    return;
 }
 
 sub version_tag_prefix {

@@ -72,7 +72,7 @@ reversibly {
         action    => 'fail',
         changeset => $changeset,
     });
-    to_undo { meta_data_rm($id) };
+    to_undo { meta_data_rm(id => $id, changeset => $changeset) };
 
     # delete the local branch
     my $sha1 = git "rev-parse $changeset";
