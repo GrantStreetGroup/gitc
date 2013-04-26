@@ -330,7 +330,9 @@ Returns a unique identifier which can be used by L</meta_data_rm>.
 
 sub meta_data_add {
     my ($entries) = @_;
-    $entries = [ $entries ] if ref($entries) ne 'ARRAY';
+    if (ref($entries) ne 'ARRAY') {
+        $entries = $entries ? [ $entries ] : [];
+    }
 
     my @meta_tags = get_meta_tags();
     my %meta_tags;

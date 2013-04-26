@@ -156,11 +156,11 @@ if ($its) {
         if ( my $issue = $its->get_issue($changeset, reload => 1) ) {
             my $project = project_name();
             my $what_happened = $its->transition_state({
-                command => 'pass',
-                issue   => $issue,
-                message => "$project#$changeset passed code review",
+                command   => 'pass',
+                issue     => $issue,
+                message   => "$project#$changeset passed code review",
+                changeset => $changeset,
             });
-            warn $what_happened;
         }
     };
     warn "$its_name Error: ".$@ if $@;

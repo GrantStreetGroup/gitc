@@ -97,9 +97,10 @@ if ($its) {
         print STDERR "Updating $its_label...";
         my $project = project_name();
         my $what_happened = $its->transition_state({
-            command => 'fail',
-            issue   => $its->get_issue($changeset, reload => 1),
-            message => "$project#$changeset failed code review",
+            command   => 'fail',
+            issue     => $its->get_issue($changeset, reload => 1),
+            message   => "$project#$changeset failed code review",
+            changeset => $changeset,
         });
         print STDERR "done\n";
         warn $what_happened;
