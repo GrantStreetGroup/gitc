@@ -194,6 +194,7 @@ sub find_reviewer {
 # determine whether the given reviewer is valid.  if not, suggest
 # an alternative based on possible mis-spellings
 sub validate_reviewer {
+    return;
     my ($reviewer) = @_;
     # CONFIGURE
     # point to valid group for your developers, or set @users some other way

@@ -155,10 +155,6 @@ sub its_for_changeset
 {
     my $changeset = shift;
 
-    return its('eventum')
-        if ( $changeset =~ /[a-z]\d+/ ); # Lowercase letter, followed by numbers looks like eventum
-    return its('jira') if ( $changeset =~ /[A-Z].*\d+/ );
-
     return its;
 }
 
@@ -804,16 +800,17 @@ sub commit_decorations {
         }
 
         # process all loose refs
-        open my $refs, '-|', 'find .git/refs -type f -printf "%P\n"'
+        open my $refs, '-|', 'find .git/refs -type f'
             or die "Unable to run find: $!\n";
         while ( my $ref = <$refs> ) {
             chomp $ref;
             my $commit = do {
-                open my $fh, '<', ".git/refs/$ref";
+                open my $fh, '<', "$ref";
                 local $/;
                 <$fh>;
             };
             chomp $commit;
+            $ref =~ s{\.git/refs/}{};
             if ( my $stale_commit = delete $packed_refs{"refs/$ref"} ) {
                 delete $decorations{$stale_commit}{"refs/$ref"};
             }
