@@ -135,7 +135,7 @@ reversibly {
         action    => 'pass',
         changeset => $changeset,
     });
-    to_undo { meta_data_rm($id) };
+    to_undo { meta_data_rm(id => $id, changeset => $changeset) };
 
     # publish the new master branch to the world
     failure_warning "\nGitc failed when publishing the changeset. "
@@ -156,11 +156,11 @@ if ($its) {
         if ( my $issue = $its->get_issue($changeset, reload => 1) ) {
             my $project = project_name();
             my $what_happened = $its->transition_state({
-                command => 'pass',
-                issue   => $issue,
-                message => "$project#$changeset passed code review",
+                command   => 'pass',
+                issue     => $issue,
+                message   => "$project#$changeset passed code review",
+                changeset => $changeset,
             });
-            warn $what_happened;
         }
     };
     warn "$its_name Error: ".$@ if $@;

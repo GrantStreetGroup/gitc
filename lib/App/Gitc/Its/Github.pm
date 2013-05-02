@@ -17,9 +17,11 @@ Support for Github Issue Tracking
 
 =cut
 
+use YAML::Syck;
 use Pithub::Issues;
 
 use App::Gitc::Util qw(
+    git
     project_config
     project_name
     command_name
@@ -41,7 +43,7 @@ sub get_issue {
 
     my $issue = eval {
         my $github = $self->get_github_object or return;
-        my $issue = $self->_get_issue($number); # TODO get github issue
+        my $issue = $self->_get_issue($number);
         die "Issue $number didn't return an object" unless $issue;
         return $github_issue{$number} = $issue;
     };
@@ -66,7 +68,7 @@ our $github_conf;
 
 sub get_github_opts {
     if (not $github_conf and -e "$ENV{HOME}/.gitc/github.conf") {
-        $github_conf = YAML::LoadFile("$ENV{HOME}/.gitc/github.conf");
+        $github_conf = LoadFile("$ENV{HOME}/.gitc/github.conf");
     }
     else {
         $github_conf ||= {}; 
@@ -74,9 +76,17 @@ sub get_github_opts {
     
     my $project = project_name(); 
 
+    my ($owner, $repo) = @{$github_conf->{$project}}{qw/Owner Repo/};
+    unless ($owner and $repo) { # default to using the repo they cloned
+        my $url = git "config --get remote.origin.url";
+        my ($o, $r) = $url =~ m|/([^/]+?)/([^/]+?)(?:\.git)?$|;
+        $owner ||= $o;
+        $repo  ||= $r;
+    }
+
     return (
-        user => $github_conf->{$project}{Owner}, 
-        repo => $github_conf->{$project}{Repo}, 
+        user => $owner,
+        repo => $repo, 
         prepare_request => sub {
             return shift->authorization_basic(@{$github_conf}{qw(Username Password)});
         },
@@ -109,6 +119,29 @@ sub issue_summary {
     return $issue->{title};
 }
 
+sub last_status {
+    my ($self, $branch) = @_;
+    return unless $branch;
+
+    my $meta_data = App::Gitc::Util::view_blob("meta/$branch") or die "No meta data found for $branch";
+    return unless @$meta_data > 1;
+
+    my $to;
+    for (my $i = @$meta_data - 2; $i >= 0; $i--) {
+        my $command = $meta_data->[$i]{action};
+        my $status;
+        if (my $target = $meta_data->[$i]{target}) {
+            $status = project_config()->{github_statuses}{$command}{$target} or next;
+        }
+        else {
+            $status = project_config()->{github_statuses}{$command} or next;
+        }
+        $to = $status->{to} and last;
+    }
+
+    return $to;
+}
+
 sub transition_state {
     my ($self, $args) = @_;
     $args ||= {};
@@ -124,25 +157,21 @@ sub transition_state {
     return "NOT CHANGING Github $label: changeset not in Github?\n"
         if not $issue;
     my $state = $self->_states( $command, $args->{target} );
-    my ($from, $to, $flag) = @{$state}{qw/from to flag/};
+    my $to = $state->{to};
+    my $from = $self->last_status($args->{changeset});
 
     $message = (getpwuid $>)[6]   # user's name
         . ": $message\n";
 
-    $message = $flag." ".$message if $flag;
-
     my ( $rc );
     eval {
         my $github = $self->get_github_object or return;
-        my ($from) = grep {/($from)/} map {$_->{name}} @{$github->labels->list(issue_id => $issue->{number})->content};
         my $r = $github->comments->create(issue_id => $issue->{number}, data => {body => $message});
         die "Could not comment on issue $issue->{number}" unless $r->response->code == 201;
-        $r = $github->labels->remove(issue_id => $issue->{number}, label => $from);
-        #die "Could not update issue $issue->{number}" unless $r->response->code == 200;
+        $r = $github->labels->remove(issue_id => $issue->{number}, label => $from) if $from; 
         $r = $github->labels->add(issue_id => $issue->{number}, data => [$to]);
         die "Could not update issue $issue->{number}" unless $r->response->code == 200;
         $rc = ($r->content->[0]{name} eq $to); 
-        # TODO update github
     };
     die $@ if $@;
 
@@ -165,6 +194,7 @@ sub issue_state {
 sub state_blocked {
     my $self = shift;
     my ($command, $state) = @_;
+    $state ||= '';
     my $statuses = project_config()->{'github_statuses'}{$command}
     or die "No Github statuses for $command";
 

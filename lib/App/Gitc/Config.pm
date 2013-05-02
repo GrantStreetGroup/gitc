@@ -44,7 +44,6 @@ projects: each top level key is the repo/project name (matches repo name 'gitc s
 =cut
 
 my %default_config = (
-    'default_its'      => 'eventum',
     'eventum_uri'      => 'https://eventum.example.com',
     'jira_uri'         => 'https://example.atlassian.net/',
     'eventum_statuses' => {
@@ -129,7 +128,7 @@ my %default_config = (
             },
         },
     },
-    'open onto' => 'prod',
+    'open onto' => 'master',
 );
 
 our %config = (
