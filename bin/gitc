@@ -25,6 +25,8 @@ use warnings;
 # override if the user has already set TMPDIR to something he prefers
 BEGIN { $ENV{TMPDIR} ||= '/var/tmp' };
 
+our $VERSION = 1.60;
+
 # is it a built in command?
 my $command = shift;
 if ( not defined $command ) {
