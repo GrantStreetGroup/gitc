@@ -24,8 +24,11 @@ use App::Gitc::Util qw(
     branch_point
     confirm
     current_branch
+    fetch_tags
     full_changeset_name
     guarantee_a_clean_working_directory
+    get_user_name
+    get_user_email
     git
     git_config
     git_fetch_and_clean_up
@@ -138,7 +141,7 @@ reversibly {
     }
 
     # blast out the emails
-    git "send-email --to $reviewer"
+    git "send-email --to " . get_user_email($reviewer)
       . '           --from "' . author_email() . '"'
       . '           --no-chain-reply-to'
       . '           --signed-off-by-cc'
@@ -178,7 +181,7 @@ sub find_reviewer {
     my $reviewer = shift or die "You must specify a reviewer\n";
 
     # handle self-review for dataload projects
-    my $current_user = getpwuid $>;
+    my $current_user = get_user_name();
     if ( $reviewer eq $current_user ) {
         if ( project_config()->{'self submit'} ) {
             $self_review = 1;
@@ -195,13 +198,10 @@ sub find_reviewer {
 # determine whether the given reviewer is valid.  if not, suggest
 # an alternative based on possible mis-spellings
 sub validate_reviewer {
-    return;
     my ($reviewer) = @_;
-    # CONFIGURE
-    # point to valid group for your developers, or set @users some other way
-    
-    my (undef, undef, undef, $members) = getgrnam('develop');
-    my @users = split /\s+/, $members;
+   
+    fetch_tags(); 
+    my @users = map {s|^user/||; return $_} git 'tag -l user/*';
 
     return if any { $_ eq $reviewer } @users;
 
@@ -374,9 +374,8 @@ sub update_email_headers {
 
 # this might be worth factoring out to App::Gitc::Util at some point
 sub author_email {
-    my $git_config = git_config();
-    my $name       = $git_config->{user}{name};
-    my $email      = $git_config->{user}{email};
+    my $name       = get_user_name();
+    my $email      = get_user_email();
     return "$name <$email>";
 }
 

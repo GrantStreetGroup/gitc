@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# PODNAME: gitc-setup
+# PODNAME: gitc-touch
 
 use strict;
 use warnings;
@@ -20,12 +20,8 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use App::Gitc::Util qw( git add_current_user );
-use App::Gitc::Config;
 
-my $project = shift;
-my $alias   = shift || '';
-git "clone $git_config->{repo_base}:$project $alias";
-chdir( $alias || $project );
+die "You need to configure a git username and email" unless git "config --get user.email";
+add_current_user();
 
-add_current_user() if git 'config --get user.email';
-git "branch $_ origin/$_" for qw( test stage prod );
+exit 0;

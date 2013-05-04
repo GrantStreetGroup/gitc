@@ -21,6 +21,8 @@ use warnings;
 
 use App::Gitc::Util qw(
     current_branch
+    get_user_name
+    get_user_email
     git
     guarantee_a_clean_working_directory
     history
@@ -83,7 +85,7 @@ reversibly {
 
     # let the user edit the failure email
     sendmail({
-        to        => scalar history_submitter($history),
+        to        => get_user_email(scalar history_submitter($history)),
         subject   => 'Failed Review',
         changeset => $changeset,
     }) if not $skip_email;
