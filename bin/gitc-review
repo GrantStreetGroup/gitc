@@ -20,6 +20,8 @@ use warnings;
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use App::Gitc::Util qw(
+    get_user_name
+    get_user_email
     git
     git_fetch_and_clean_up
     history
@@ -40,7 +42,7 @@ if ($changeset eq 'next') {
     my @to_review = grep {
         my $history = $unmerged->{$_};
         my $status = history_status($history);
-        $status eq 'submitted' and history_reviewer($history) eq getpwuid $>
+        $status eq 'submitted' and history_reviewer($history) eq get_user_name();
     } keys %$unmerged;
     die "No changesets submitted for review.\n" unless @to_review;
     @to_review = sort {
