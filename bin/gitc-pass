@@ -23,6 +23,8 @@ use App::Gitc::Util qw(
     confirm
     current_branch
     full_changeset_name
+    get_user_name
+    get_user_email
     git
     git_tag
     guarantee_a_clean_working_directory
@@ -122,7 +124,7 @@ reversibly {
         ]six;
         $send_email = sendmail({
             lazy      => 1,
-            to        => scalar history_submitter($history),
+            to        => get_user_email(scalar history_submitter($history)),
             subject   => 'Merged',
             changeset => $changeset,
             content   => "-- \n$patch",

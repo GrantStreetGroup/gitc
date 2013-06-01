@@ -21,6 +21,8 @@ use YAML::Syck;
 use Pithub::Issues;
 
 use App::Gitc::Util qw(
+    get_user_name
+    get_user_email
     git
     project_config
     project_name
@@ -160,7 +162,7 @@ sub transition_state {
     my $to = $state->{to};
     my $from = $self->last_status($args->{changeset});
 
-    $message = (getpwuid $>)[6]   # user's name
+    $message = get_user_name()   # user's name
         . ": $message\n";
 
     my ( $rc );

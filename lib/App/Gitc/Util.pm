@@ -22,6 +22,9 @@ BEGIN {
         current_branch
         eventum
         eventum_transition_status
+        fetch_tags
+        get_user_name
+        get_user_email
         git
         git_config
         guarantee_a_clean_working_directory
@@ -34,6 +37,7 @@ BEGIN {
         its_for_changeset
     );
     our @EXPORT_OK = qw(
+        add_current_user
         archived_tags
         branch_basis
         branch_point
@@ -321,6 +325,39 @@ sub view_blob {
     return ($output and $output !~ /^fatal:/) ? Load($output) : undef;
 }
 
+sub get_user_name {
+    my $git_user = git 'config --get user.name';
+    my $git_config = git_config();
+
+    return $git_user || $git_config->{user}{name} || getpwuid $>;    
+}
+
+sub get_user_email {
+    my ($user) = @_;
+    return git 'config --get user.email' unless $user;
+    fetch_tags();
+    my $git_config = git_config();
+
+    my $user_info = view_blob("user/$user") || {};
+
+    return $user_info->{email} || $git_config->{user}{email} || $user; 
+}
+
+sub add_current_user {
+    my $user  = get_user_name();
+    my $email = get_user_email();
+    # get user email defaults to returning username if not configured in git
+    # die if not configured
+    die "You need to configure a git username and email." unless $user ne $email;
+
+    my $user_info = {email => $email};
+    my $blob = create_blob($user_info);
+
+    git_tag('-d', "user/$user") if view_blob("user/$user");
+    git_tag("user/$user", $blob);
+    return git "push --force origin user/$user";
+}
+
 =head2 meta_data_add($data)
 
 Appends the contents of the hashref C<$data> to the changeset meta data.
@@ -346,7 +383,7 @@ sub meta_data_add {
     my $flush = 1;
     for my $data (@$entries) {
         # remember which user performed this action
-        $data->{user} = getpwuid $> if not exists $data->{user};
+        $data->{user} = get_user_name() if not exists $data->{user};
         my $changeset = $data->{changeset};
 
         my $meta_info = $meta_tags{"meta/$changeset"} ? view_blob("meta/$changeset") : [];
@@ -467,12 +504,16 @@ sub meta_data_rm_all {
     git "push origin :$meta_tag";
 }
 
+sub fetch_tags {
+    our $recent_tags;
+    ++$recent_tags and git "fetch origin --tags" unless $recent_tags;
+}
+
 sub get_meta_tags {
     my (%args) = @_;
     $args{fetch} //= 1;
-    our $recent_meta_data;
+    fetch_tags() if $args{fetch};
 
-    ++$recent_meta_data and git "fetch origin --tags" if $args{fetch} and not $recent_meta_data;
     my $meta_tag_string = git "tag -l 'meta/*'";
     return split "\n", $meta_tag_string;
 }
@@ -1410,7 +1451,7 @@ sub sendmail {
     require File::Temp;
     my ( $temp_fh, $temp_file )
         = File::Temp::tempfile( "gitc-$command-XXXX", UNLINK => 1 );
-    my $name = getpwuid $>;
+    my $name = get_user_name() . ' <' . get_user_email() . '>';
     print $temp_fh <<ENDMAIL;
 To: $recipient
 From: $name
