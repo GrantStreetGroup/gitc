@@ -38,6 +38,7 @@ use App::Gitc::Util qw(
     meta_data_rm
     project_config
     project_name
+    state_blocked
 );
 use App::Gitc::Reversible;
 use Getopt::Long;
@@ -55,7 +56,7 @@ my $its = its_for_changeset($changeset_name);
 if ($its) {
     my $issue = $its->get_issue($changeset_name);
     my $state = $its->issue_state($issue);
-    if ($issue && $its->state_blocked('open', $state)) {
+    if ($issue && state_blocked('open', $state)) {
         my $its_label = $its->label_issue;
         die "gitc-open aborting\n"
             unless confirm("$its_label is @{[ uc $state ]}.  Proceed?");
@@ -133,7 +134,7 @@ sub validate_onto_argument {
     if ( not defined $onto ) {
         if ( my $previous = find_previous_changeset($changeset) ) {
             my @merged_to = changeset_merged_to($previous);
-            my $default_onto = project_config()->{'open onto'};
+            my $default_onto = project_config()->{ open_onto };
             $onto = $previous if not @merged_to;
             $onto = $previous if none { $_ eq $default_onto } @merged_to;
         }
@@ -141,7 +142,7 @@ sub validate_onto_argument {
 
     # use the project's default starting branch
     if ( not defined $onto ) {
-        my $default_onto = project_config()->{'open onto'};
+        my $default_onto = project_config()->{ open_onto };
         return "origin/$default_onto";
     }
 

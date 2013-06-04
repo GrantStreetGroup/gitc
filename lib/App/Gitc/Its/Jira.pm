@@ -70,31 +70,6 @@ sub lookup_status_strings
     return { map { $_->{id} => $_->{name} } @{$statuses} };
 }
 
-=head2 _states
-
-Used internally by class to calculate target for state change
-
-=cut 
-sub _states
-{
-    my $self = shift;
-    my ( $command, $target ) = @_;
-    my $statuses = project_config()->{'jira_statuses'}{$command}
-        or die "No JIRA statuses for $command";
-
-    # handle the common case
-    if ( not $target ) {
-        die "No initial status" unless $statuses->{from};
-        die "No final status" unless $statuses->{to};
-        return ( $statuses );
-    }
-
-    # promotions need another level of dereference
-        die "No initial status for target $target" unless $statuses->{$target}{from};
-        die "No final status for target $target" unless $statuses->{$target}{to};
-        return $statuses->{$target};
-}
-
 =head2 get_jira_object
 
 Returns a JIRA object used to access the SOAP API
@@ -175,30 +150,6 @@ sub get_issue {
 
     warn "Error accessing JIRA: $@" if $@;
     return $issue; 
-}
-
-=head2 state_blocked
-
-Given a C<command> and a specified C<state> this checks the block list in the
-project configuration and returns true if the state should block the command
-from proceeding.
-
-NOTE: Block list must be an arraref in the project configuration 
-
-=cut
-sub state_blocked {
-    my $self = shift;
-    my ($command, $state) = @_;
-    my $statuses = project_config()->{'jira_statuses'}{$command}
-        or die "No JIRA statuses for $command";
-
-    # promotions need another level of dereference
-    my $block = $statuses->{block};
-    return unless $block;
-
-    return 1 if any { $_ eq $state } @{$block};
-    
-    return;
 }
 
 =head2 transition_state

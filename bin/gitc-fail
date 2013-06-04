@@ -105,7 +105,6 @@ if ($its) {
             changeset => $changeset,
         });
         print STDERR "done\n";
-        warn $what_happened;
     };
     warn "Updating $its_label failed! $@" if $@;
 }

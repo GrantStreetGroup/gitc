@@ -40,6 +40,7 @@ use App::Gitc::Util qw(
     meta_data_rm
     project_config
     project_name
+    user_lookup_class
 );
 use App::Gitc::Reversible;
 use Getopt::Long;
@@ -164,7 +165,6 @@ reversibly {
             message   => "Submitted $project#$changeset to $reviewer for code review",
             changeset => $changeset,
         });
-        warn $what_happened;
     }
     return;
 };
@@ -201,7 +201,7 @@ sub validate_reviewer {
     my ($reviewer) = @_;
    
     fetch_tags(); 
-    my @users = map {s|^user/||; return $_} git 'tag -l user/*';
+    my @users = user_lookup_class()->users();
 
     return if any { $_ eq $reviewer } @users;
 

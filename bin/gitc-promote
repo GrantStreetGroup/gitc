@@ -223,7 +223,7 @@ if (@new_tags) {
     }
 
     # prevent trivial conflicts for the next 'gitc pass'
-    if ( $cherry_pick and $target eq project_config()->{'open onto'} ) {
+    if ( $cherry_pick and $target eq project_config()->{ open_onto } ) {
         git "fetch origin";
         git "checkout master" if $original_branch ne 'master';
         git "reset --hard origin/master";

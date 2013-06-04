@@ -11,7 +11,7 @@ use Hash::Merge::Simple qw( merge );
 # in the implementation below.  That way, the module can be
 # lazily loaded at run time, if it's actually needed.
 use List::Util qw( first max );
-use List::MoreUtils qw( first_index );
+use List::MoreUtils qw( first_index any );
 
 use Class::MOP;
 
@@ -81,7 +81,9 @@ BEGIN {
         traverse_commits
         unmerged_changesets
         unpromoted
+        user_lookup_class
         version_tag_prefix
+        state_blocked
     );
 }
 
@@ -127,9 +129,52 @@ sub current_branch {
     return $name;
 }
 
-sub eventum { die 'Replace with $its->get_issue'; }
-sub eventum_transition_status { die 'Replace with $its->transition_state'; };
-sub eventum_statuses { die 'Replace with $its->_states'; };
+=head its_config
+
+Returns the config specific to this project's ITS.
+
+=cut
+
+sub its_config {
+    my $name = lc its()->label_service;
+
+    return project_config()->{ "${name}_statuses" };
+}
+
+# Eventum is the name of our internal ticketing system.
+sub eventum {
+    return its()->get_issue( @_ );
+}
+
+sub eventum_transition_status {
+    return its()->transition_state( @_ );
+}
+
+=head2 eventum_statuses
+
+Returns the from and to state based on a command provided to GITC.
+
+=cut
+
+sub eventum_statuses {
+    my ( $self, $command, $target ) = @_;
+
+    my $statuses = project_config()->{'jira_statuses'}{$command}
+        or die "No JIRA statuses for $command";
+
+    # handle the common case
+    if ( not $target ) {
+        die "No initial status" unless $statuses->{from};
+        die "No final status" unless $statuses->{to};
+        return ( $statuses );
+    }
+
+    # promotions need another level of dereference
+        die "No initial status for target $target" unless $statuses->{$target}{from};
+        die "No final status for target $target" unless $statuses->{$target}{to};
+        return $statuses->{$target};
+
+}
 
 =head2 its
 
@@ -145,23 +190,46 @@ sub _package_its {
 
     return 'App::Gitc::Its::'.ucfirst $its_type; 
 }
+
 sub its {
     my $its = shift || project_config()->{'default_its'};
+    
+    # They don't have to use an ITS if they don't want.
     return undef unless $its;
 
-    Class::MOP::load_class(_package_its($its));
+    # But if one's specified, it has to work.
+    Class::MOP::load_class(_package_its($its))
+        or die "I can't load $its: $!.\n";
+
     return _package_its($its)
 }
+
+sub user_lookup_class {
+    my $lookup_class = project_config()->{ user_lookup_method }
+                    // 'LocalGroup';
+
+    my $pkg = "App::Gitc::UserLookup::$lookup_class";
+
+    Class::MOP::load_class( $pkg );
+
+    return $pkg;
+}
+
 =head2 its_for_changeset
 
-Guesses which ITS object we need based on the changeset name
+Guesses which ITS object we need based on the changeset name, returns the
+object if it supports it, or just the class name.
 
 =cut
-sub its_for_changeset
-{
-    my $changeset = shift;
 
-    return its;
+sub its_for_changeset {
+    my ( $changeset ) = @_;
+
+    my $its = its();
+
+    return $its->can( 'its_for_changeset' )
+        ? $its->its_for_changeset( $changeset )
+        : $its;
 }
 
 =head2 git
@@ -296,7 +364,7 @@ C<$filename>.
 sub let_user_edit {
     my ($filename) = @_;
 
-    my $editor = $ENV{EDITOR} || '/usr/bin/vim';
+    my $editor = $ENV{EDITOR} || $ENV{VISUAL} || '/usr/bin/vim';
     system "$editor $filename";
 }
 
@@ -578,7 +646,6 @@ sub new_version_tag {
 Returns a hashref with configuration details about this project.
 
 Configuration is loaded from the following sources:
-* App::Gitc::Config (legacy)
 * /etc/gitc/gitc.config
 * $PROJECT_ROOT/gitc.config
 * $HOME/.gitc/gitc.config
@@ -597,7 +664,6 @@ we found to generate a final fully baked configuration for the project.
 sub project_config {
     my $project_name = shift;
 
-    require App::Gitc::Config;
     my @files = (GITC_CONFIG);
     # we can't pull from the per-project dir if we specify the project_name
     my $project_file;
@@ -614,14 +680,15 @@ sub project_config {
         push(@files, split(':', $ENV{GITC_CONFIG}));
     }
     
-    my $projects = $App::Gitc::Config::config{projects};
+    my $projects;
     local $YAML::Syck::UseCode = 1;
     foreach my $file (@files) {
         next unless -f $file;
         my $data = eval {YAML::Syck::LoadFile($file)};
-        # Allow the config file that is in the project_dir to not have to specify itself
-        # This will allow that configuration file to be formatted slightly differently
-        # but in a way which would make more sense locally to that project
+        # Allow the config file that is in the project_dir to not have to
+        # specify itself This will allow that configuration file to be
+        # formatted slightly differently but in a way which would make more
+        # sense locally to that project
         if ($file eq $project_file) {
             if (!$data->{$project_name} and keys %{$data}) {
                 $data = {$project_name => $data};
@@ -630,10 +697,11 @@ sub project_config {
     
         $projects = merge $projects, $data;
     }
-    my $default = $projects->{_default};
-    my $project_config = $projects->{ $project_name } || {};
-    $project_config = merge $default, $project_config if $project_config;
+
+    my $project_config = $projects->{ $project_name } // $projects;
     
+    die "No config found!\n" if !keys %{ $project_config // {} };
+
     return $project_config;
 }
 
@@ -1824,34 +1892,56 @@ sub command_name {
     die "Unable to determine the command name from $0\n";
 }
 
-=head2 dbh
+=head2 _states
 
-Returns a database handle connected to the gitc database.  This subroutine is
-private to try and discourage developers from using it directly.  Instead, a
-subroutine should be written in this module and that subroutine can use
-L</dbh>.  That way, the particulars about data storage are opaque to the rest
-of the application.  If we ever decide to move the information into Git's
-object database (or elsewhere), only this module will need to be changed.
+Used internally to calculate target for state change.
 
 =cut
 
-sub dbh {
-    our $dbh;
-    return $dbh if $dbh and $dbh->ping;
-    require DBI;
-    # CONFIGURE
-    # Must specify valid DBI connection information here
-    # TODO this should be pulled from a configuration file
-    $dbh = DBI->connect();
-    # EXAMPLE
-    # $dbh = DBI->connect(
-    #     "dbi:mysql:database=$db_name;host=$db_hostname",
-    #     $db_username,
-    #     $db_password,
-    #     { RaiseError => 1 },
-    # );
-    $dbh->do(q{SET SESSION sql_mode='TRADITIONAL'});
-    return $dbh;
+sub _states {
+    my ( $self, $command, $target ) = @_;
+
+    my $statuses = its_config()->{ $command }
+        or die 'No ' . its->label_service . " statuses for $command";
+
+    # handle the common case
+    if ( not $target ) {
+        die "No initial status" unless $statuses->{from};
+        die "No final status" unless $statuses->{to};
+        return ( $statuses );
+    }
+
+    # promotions need another level of dereference
+    die "No initial status for target $target" unless $statuses->{$target}{from};
+    die "No final status for target $target" unless $statuses->{$target}{to};
+
+    return $statuses->{$target};
+}
+
+=head2 state_blocked
+
+Given a C<command> and a specified C<state> this checks the block list in the
+project configuration and returns true if the state should block the command
+from proceeding.
+
+NOTE: Block list must be an arraref in the project configuration 
+
+=cut
+
+sub state_blocked {
+    my ( $command, $state ) = @_;
+
+    my $statuses = its_config()->{ $command }
+        or die 'No ' . its()->label_service . " statuses for $command";
+
+    # promotions need another level of dereference
+    my $block = $statuses->{ block };
+
+    return unless $block;
+
+    return 1 if any { warn " \$_: $_, \$state: $state.\n";$_ eq $state } @{$block};
+    
+    return;
 }
 
 1;

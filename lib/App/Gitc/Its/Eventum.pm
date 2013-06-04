@@ -137,56 +137,6 @@ sub transition_state {
     }
 }
 
-=head2 _states
-
-Used internally by class to calculate target for state change
-
-=cut 
-sub _states {
-    my $self = shift;
-    my ($command, $target) = @_;
-    my $statuses = project_config()->{'eventum_statuses'}{$command}
-        or die "No Eventum statuses for $command";
-
-    # handle the common case
-    if ( not $target ) {
-        my $from = $statuses->{from} or die "No initial status";
-        my $to   = $statuses->{to}   or die "No final status";
-        return ( $from, $to );
-    }
-
-    # promotions need another level of dereference
-    my $from = $statuses->{$target}{from}
-        or die "No initial status for target $target";
-    my $to = $statuses->{$target}{to}
-        or die "No final status for target $target";
-    return ( $from, $to );
-}
-
-=head2 state_blocked
-
-Given a C<command> and a specified C<state> this checks the block list in the
-project configuration and returns true if the state should block the command
-from proceeding.
-
-NOTE: Block list must be an arraref in the project configuration 
-
-=cut
-sub state_blocked {
-    my $self = shift;
-    my ($command, $state) = @_;
-    my $statuses = project_config()->{'eventum_statuses'}{$command}
-        or die "No Eventum statuses for $command";
-
-    # promotions need another level of dereference
-    my $block = $statuses->{block};
-    return unless $block;
-
-    return 1 if any { $_ eq $state } @{$block};
-    
-    return;
-}
-
 =head2 issue_*
 
 These return the correct field based on being passed in an eventum issue object.
