@@ -1,9 +1,12 @@
-use strict;
-use warnings;
-package App::Gitc;
+=pod
 
-# VERSION
-# ABSTRACT: Git Changesets, tools for managing your git changes
+=head1 NAME
+
+App::Gitc - Git Changesets, tools for managing your git changes
+
+=head1 VERSION
+
+version 0.60
 
 =head1 See
 
@@ -30,6 +33,15 @@ Grant Street Group <F<developers@grantstreet.com>>
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-=cut
+=head1 AUTHOR
 
-1;
+Grant Street Group <developers@grantstreet.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is Copyright (c) 2013 by Grant Street Group.
+
+This is free software, licensed under:
+
+  The GNU Affero General Public License, Version 3, November 2007
+
