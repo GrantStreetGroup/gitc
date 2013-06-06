@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# PODNAME: gitc-status
 
 use strict;
 use warnings;
@@ -18,5 +17,9 @@ use warnings;
 #
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# PODNAME: gitc-status
+# ABSTRACT: Get the status of the current changeset
+# VERSION
 
 exec "gitc diff --name-status";

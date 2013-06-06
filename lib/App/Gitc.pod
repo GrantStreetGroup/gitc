@@ -1,0 +1,12 @@
+# PODNAME: App::Gitc
+# ABSTRACT: Git Changesets - tools for managing your git changes
+
+=head1 INSTALLATION
+
+Read the L<../../HOWTO|HOWTO> for information on setting up Gitc.  Example configuration files are available.
+
+=head1 SEE ALSO
+
+L<https://github.com/GrantStreetGroup/gitc/wiki|"Gitc Wiki">
+
+L<App::Gitc::Util>

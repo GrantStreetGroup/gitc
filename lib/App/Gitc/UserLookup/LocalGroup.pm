@@ -3,6 +3,9 @@ package App::Gitc::UserLookup::LocalGroup;
 use strict;
 use warnings;
 
+# ABSTRACT: App::Gitc::Util helper
+# VERSION
+
 use App::Gitc::Util qw( project_config );
 
 # Users are local users in a specific group.

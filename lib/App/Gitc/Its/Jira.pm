@@ -1,25 +1,19 @@
 package App::Gitc::Its::Jira;
+use strict;
+use warnings;
 
-=head1 NAME
+# ABSTRACT: Support for Atlassian JIRA ITS (Issue Tracking System)
+# VERSION
 
-App::Gitc::Its::Jira;
-
-=head1 Synopsis
-
-Support for Atlassian JIRA ITS (Issue Tracking System)
+=head1 DESCRIPTION
 
 Uses a mix of both SOAP and REST APIs.
 
 Eventually this should be migrated to fully use the REST API once it is mature.
 
-=head1 Description
-
-=head1 Methods
+=head1 METHODS
 
 =cut
-
-use strict;
-use warnings;
 
 use JIRA::Client;
 use JIRA::Client::REST;
@@ -334,28 +328,5 @@ sub issue_scheduled_release {
 
     return $issue->{fixVersions}->[-1]->{name}; #.' ('.$issue->{fixVersions}->[-1]->{releaseDate}.')';
 }
-
-=head1 AUTHOR
-
-Grant Street Group <F<developers@grantstreet.com>>
-
-=head1 COPYRIGHT AND LICENSE
-
-    Copyright 2012 Grant Street Group, All Rights Reserved.
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-=cut
 
 1;

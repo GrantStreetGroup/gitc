@@ -1,19 +1,13 @@
 package App::Gitc::Its::Github;
-
 use strict;
 use warnings;
 
-=head1 NAME
+# ABSTRACT: Support for Github Issue Tracking
+# VERSION
 
-App::Gitc::Its::Github;
+=head1 DESCRIPTION
 
-=head1 Synopsis
-
-Support for Github Issue Tracking
-
-=head1 Description
-
-=head1 Methods
+=head1 METHODS
 
 =cut
 
