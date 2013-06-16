@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# PODNAME: gitc
 
 use strict;
 use warnings;
@@ -19,13 +18,15 @@ use warnings;
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# PODNAME: gitc
+# ABSTRACT: The root delegator of all other gitc commands
+# VERSION
+
 # generally /var/tmp has more space than /tmp  It's possible that /tmp
 # will get full.  If '/var/tmp' doesn't exist on a particular machine,
 # tmpdir() does the right thing and just defaults to /tmp.  Of course, don't
 # override if the user has already set TMPDIR to something he prefers
 BEGIN { $ENV{TMPDIR} ||= '/var/tmp' };
-
-our $VERSION = 1.60;
 
 # is it a built in command?
 my $command = shift;
