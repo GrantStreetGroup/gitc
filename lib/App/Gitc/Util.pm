@@ -1447,6 +1447,7 @@ sub project_name {
     our $project_name;
     return $project_name if defined $project_name;
     my ($line) = git "show HEAD:.gitc";
+    die "You need to specify a project name in a .gitc file. See the HOWTO for more details." unless $line;
     my ($name) = $line =~ m/^\s*name\s*:\s*(.*)$/;
     return $project_name = $name;
 }
