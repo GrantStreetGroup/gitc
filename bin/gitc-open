@@ -52,6 +52,8 @@ GetOptions( 'onto=s' => \$onto );
 
 my $changeset_name = shift or die "You must specify a changeset name\n";
 
+exec 'gitc-quickfix', if $changeset_name eq 'quickfix';
+
 die "You may not create a changeset named '$changeset_name'\n"
     if $changeset_name =~ m/^(master|test|stage|prod)$/;
 
