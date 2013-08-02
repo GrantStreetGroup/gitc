@@ -20,7 +20,7 @@ use warnings;
 
 # PODNAME: gitc
 # ABSTRACT: The root delegator of all other gitc commands
-# VERSION
+our $VERSION = '0.60'; # VERSION
 
 # generally /var/tmp has more space than /tmp  It's possible that /tmp
 # will get full.  If '/var/tmp' doesn't exist on a particular machine,
