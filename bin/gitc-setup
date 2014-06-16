@@ -22,12 +22,12 @@ use warnings;
 # ABSTRACT: First time user setup for a gitc project
 # VERSION
 
-use App::Gitc::Util qw( git add_current_user );
-use App::Gitc::Config;
+use App::Gitc::Util qw( git add_current_user project_config );
+my $project_config = project_config();
 
 my $project = shift;
 my $alias   = shift || '';
-git "clone $git_config->{repo_base}:$project $alias";
+git "clone $project_config->{repo_base}:$project $alias";
 chdir( $alias || $project );
 
 add_current_user() if git 'config --get user.email';
