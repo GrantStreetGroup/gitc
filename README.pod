@@ -21,7 +21,7 @@ L<App::Gitc::Util>
 
 =head1 AUTHOR
 
-Grant Street Group <developers@grantstreet.com>
+Grant Street Group <github@grantstreet.com>
 
 =head1 COPYRIGHT AND LICENSE
 
