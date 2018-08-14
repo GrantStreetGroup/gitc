@@ -1510,9 +1510,23 @@ sub sendmail {
     my $link      = $args->{link}         || q{};
     my $project   = $args->{project}      || project_name();
     my $changeset = $args->{changeset}    || die "No mail changeset ID";
+    my $formatted_subject = $args->{subject_format} 
+                         || project_config($project)->{subject_format}
+                         || '[%{project}#%{changeset}] %{subject}';
 
     # determine a temporary file name template
     my $command = eval { command_name() } || 'unknown';
+
+    my %vars = (
+        project   => $project,
+        changeset => $changeset,
+        subject   => $subject,
+    );
+
+    for my $key (keys %vars) {
+        my $value = $vars{$key};
+        $formatted_subject =~ s/%\{\s*$key\s*\}/$value/g;
+    }
 
     # CONFIGURE (optional)
     # Add any site specific custom headers here
@@ -1527,7 +1541,7 @@ sub sendmail {
     print $temp_fh <<ENDMAIL;
 To: $recipient
 From: $name
-Subject: [$project#$changeset] $subject
+Subject: $formatted_subject
 $extra_headers
 
 $link
